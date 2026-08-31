@@ -7,6 +7,7 @@
 <meta name="description" content="24/7 emergency plumbing, drain cleaning, water heater installs, and pipe repair. Licensed, insured, and locally trusted.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="chatbot-widget.css">
 <style>
   :root {
     --ink: #10243E;
@@ -722,18 +723,16 @@
 
 <!--
   ===========================================================
-  CHATBOT WIDGET INTEGRATION POINT
+  CHATBOT WIDGET
   ===========================================================
-  This is where the chatbot embed script/widget will be added
-  during the live Claude Code session. The dashed box below is
-  just a visual placeholder so it's obvious where it will live.
-  Delete the placeholder div once the real widget is in place.
+  Rule-based keyword chatbot. Content/keywords live in
+  chatbot-config.js; behavior lives in chatbot-widget.js. Both
+  build and inject their own markup — nothing else on this page
+  needs to change to edit the bot's copy or keyword map.
   ===========================================================
 -->
-<div class="chatbot-placeholder">
-  💬 Chatbot widget goes here
-  <span>Added in session 2</span>
-</div>
+<script src="chatbot-config.js"></script>
+<script src="chatbot-widget.js"></script>
 
 <script>
   // Mobile menu toggle
