@@ -7,6 +7,8 @@
 
    Builds its own DOM and injects it at the end of <body>, so it doesn't
    require any markup changes to the host page.
+
+   Built to spec: blue-wrench-chatbot-spec.md
    ========================================================================= */
 
 (function () {
@@ -30,6 +32,7 @@
   var touch2Fired = false;
   var touch2Resolved = false;
   var touch2Source = null;     // 'close' | 'goodbye' | 'inactivity'
+  var hasContactInfo = false;  // true once a lead form is submitted with a usable name + (phone or email)
 
   var inactivityTimer = null;
 
@@ -92,29 +95,47 @@
     }, randomTypingDelay());
   }
 
+  // Keyword matching (spec §3). First category whose keyword list matches
+  // wins. A category with `subMatches` picks the most specific reply it can;
+  // otherwise falls back to its own general `reply`.
   function matchKeyword(message) {
     var lower = message.toLowerCase();
-    for (var i = 0; i < CFG.keywordResponses.length; i++) {
-      var entry = CFG.keywordResponses[i];
-      for (var j = 0; j < entry.keywords.length; j++) {
-        if (lower.indexOf(entry.keywords[j].toLowerCase()) !== -1) {
-          return entry.reply;
+
+    function containsAny(keywords) {
+      for (var i = 0; i < keywords.length; i++) {
+        if (lower.indexOf(keywords[i].toLowerCase()) !== -1) return true;
+      }
+      return false;
+    }
+
+    for (var i = 0; i < CFG.keywordCategories.length; i++) {
+      var category = CFG.keywordCategories[i];
+      if (!containsAny(category.keywords)) continue;
+
+      if (category.subMatches) {
+        for (var j = 0; j < category.subMatches.length; j++) {
+          if (containsAny(category.subMatches[j].keywords)) {
+            return category.subMatches[j].reply;
+          }
         }
       }
+      return category.reply;
     }
+
     return CFG.fallbackResponse;
   }
 
   function isGoodbye(message) {
     var lower = message.toLowerCase();
-    return CFG.goodbyeKeywords.some(function (k) {
-      return lower.indexOf(k.toLowerCase()) !== -1;
+    return CFG.goodbyeWords.some(function (word) {
+      return lower.indexOf(word.toLowerCase()) !== -1;
     });
   }
 
   // ---------------------------------------------------------------------
-  // Inactivity timer (Touch 2 trigger (c))
-  // Only armed once Touch 1 is resolved; disarmed once Touch 2 has fired.
+  // Inactivity timer — 60s of inactivity after the last bot message fires
+  // Touch 2 (spec §2.7c). Only armed once Touch 1 is resolved; disarmed
+  // once Touch 2 has fired.
   // ---------------------------------------------------------------------
   function resetInactivityTimer() {
     clearInactivityTimer();
@@ -133,12 +154,12 @@
   }
 
   // ---------------------------------------------------------------------
-  // Lead capture (shared by Touch 1 and Touch 2)
+  // Lead capture (shared by Touch 1 and Touch 2, spec §4)
   // ---------------------------------------------------------------------
   function showLeadForm(kind) {
     activeLeadForm = kind;
     setInputEnabled(false);
-    var message = kind === "touch1" ? CFG.touch1Message : CFG.touch2Message;
+    var message = kind === "touch1" ? CFG.leadFirstMessage : CFG.leadSecondMessage;
     botReply(message, function () {
       renderLeadFormBubble(kind);
     });
@@ -150,27 +171,41 @@
 
     var nameField = buildField("bwp-lead-name-" + kind, "Name", "text", "Jordan Lee");
     var phoneField = buildField("bwp-lead-phone-" + kind, "Phone", "tel", "(555) 000-0000");
-    var emailField = buildField("bwp-lead-email-" + kind, "Email", "email", "jordan@email.com");
+    var fields = [nameField, phoneField];
 
-    wrap.appendChild(nameField.wrapper);
-    wrap.appendChild(phoneField.wrapper);
-    wrap.appendChild(emailField.wrapper);
+    if (kind === "touch1") {
+      var emailField = buildField("bwp-lead-email-" + kind, "Email", "email", "jordan@email.com");
+      fields.push(emailField);
+    }
+
+    fields.forEach(function (f) { wrap.appendChild(f.wrapper); });
 
     var actions = el("div", "bwp-lead-form-actions");
     var submitBtn = el("button", "bwp-lead-submit", "Submit");
     submitBtn.type = "submit";
-    var skipBtn = el("button", "bwp-lead-skip", "No thanks");
+    var skipBtn = el("button", "bwp-lead-skip", kind === "touch1" ? "No thanks, just answer my question" : "No thanks");
     skipBtn.type = "button";
     actions.appendChild(submitBtn);
     actions.appendChild(skipBtn);
     wrap.appendChild(actions);
+
+    if (kind === "touch1") {
+      var dismiss = el("button", "bwp-lead-dismiss", "×");
+      dismiss.type = "button";
+      dismiss.setAttribute("aria-label", "Dismiss");
+      dismiss.addEventListener("click", function () {
+        wrap.remove();
+        handleLeadSkip(kind);
+      });
+      wrap.appendChild(dismiss);
+    }
 
     wrap.addEventListener("submit", function (e) {
       e.preventDefault();
       var values = {
         name: nameField.input.value.trim(),
         phone: phoneField.input.value.trim(),
-        email: emailField.input.value.trim()
+        email: fields.length > 2 ? fields[2].input.value.trim() : ""
       };
       wrap.remove();
       handleLeadSubmit(kind, values);
@@ -210,16 +245,24 @@
     };
     if (kind === "touch1") entry.firstMessage = pendingFirstMessage;
     // Stub: no backend yet — this is where a real submission would POST.
+    // (Matches the site's existing contact form, which is also demo-only.)
     console.log("[Blue Wrench Chatbot] Lead capture (" + kind + "):", entry);
   }
 
+  function isCompleteLead(values) {
+    return !!(values.name && (values.phone || values.email));
+  }
+
   function handleLeadSubmit(kind, values) {
+    var complete = isCompleteLead(values);
     logLead(kind, values, true);
     activeLeadForm = null;
+    if (complete) hasContactInfo = true;
+
     if (kind === "touch1") {
-      resolveTouch1();
+      resolveTouch1(complete ? values.name : null);
     } else {
-      resolveTouch2(true);
+      resolveTouch2(complete);
     }
   }
 
@@ -227,26 +270,34 @@
     logLead(kind, { name: "", phone: "", email: "" }, false);
     activeLeadForm = null;
     if (kind === "touch1") {
-      resolveTouch1();
+      resolveTouch1(null);
     } else {
       resolveTouch2(false);
     }
   }
 
-  function resolveTouch1() {
+  function resolveTouch1(name) {
     touch1Resolved = true;
     setInputEnabled(true);
-    var reply = matchKeyword(pendingFirstMessage);
-    botReply(reply, function () {
-      resetInactivityTimer();
-    });
+    var ackAndAnswer = function () {
+      var reply = matchKeyword(pendingFirstMessage);
+      botReply(reply, function () {
+        resetInactivityTimer();
+      });
+    };
+    if (name) {
+      var thankYou = CFG.leadFirstThankYou.replace("{name}", name);
+      botReply(thankYou, ackAndAnswer);
+    } else {
+      ackAndAnswer();
+    }
   }
 
   function resolveTouch2(submitted) {
     touch2Resolved = true;
     clearInactivityTimer();
     setInputEnabled(false); // conversation is wrapping up
-    var message = submitted ? CFG.touch2ThankYou : CFG.touch2SkippedMessage;
+    var message = submitted ? CFG.leadSecondThankYou : CFG.leadFinalContactBlock;
     botReply(message, function () {
       if (touch2Source === "close") {
         setTimeout(closeWidget, 1800);
@@ -255,13 +306,19 @@
   }
 
   // Fires Touch 2 exactly once per session, from whichever trigger reaches
-  // it first: close button, goodbye keyword, or 60s inactivity.
+  // it first: close button, goodbye keyword, or 60s inactivity (spec §2.7).
+  // If the visitor already gave complete contact info at Touch 1, skip
+  // straight to the final contact block instead of asking again.
   function triggerTouch2(source) {
     if (touch2Fired) return;
     touch2Fired = true;
     touch2Source = source;
     clearInactivityTimer();
-    showLeadForm("touch2");
+    if (hasContactInfo) {
+      resolveTouch2(true);
+    } else {
+      showLeadForm("touch2");
+    }
   }
 
   function setInputEnabled(enabled) {
@@ -280,6 +337,7 @@
     addUserMessage(text);
     els.input.value = "";
 
+    // Spec §2.2-2.3: before answering the FIRST message, show the lead form.
     if (!firstMessageSent) {
       firstMessageSent = true;
       pendingFirstMessage = text;
@@ -297,7 +355,9 @@
     }
 
     var reply = matchKeyword(text);
-    botReply(reply);
+    botReply(reply, function () {
+      resetInactivityTimer();
+    });
   }
 
   // ---------------------------------------------------------------------
@@ -415,8 +475,17 @@
     inputRow.appendChild(input);
     inputRow.appendChild(sendBtn);
 
+    // Persistent footer (spec §2.5): the phone number, always visible,
+    // not repeated as text alongside every individual bot reply.
+    var footer = el("div", "bwp-chat-footer");
+    footer.appendChild(document.createTextNode("Call us anytime: "));
+    var footerLink = el("a", null, CFG.companyPhone);
+    footerLink.href = "tel:" + CFG.companyPhone.replace(/[^\d+]/g, "");
+    footer.appendChild(footerLink);
+
     win.appendChild(header);
     win.appendChild(body);
+    win.appendChild(footer);
     win.appendChild(inputRow);
 
     root.appendChild(win);

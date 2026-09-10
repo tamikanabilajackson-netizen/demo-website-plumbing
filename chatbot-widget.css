@@ -179,6 +179,7 @@
 
 /* ---------- Inline lead capture form ---------- */
 .bwp-lead-form {
+  position: relative;
   align-self: flex-start;
   max-width: 92%;
   width: 100%;
@@ -191,6 +192,20 @@
   flex-direction: column;
   gap: 8px;
 }
+
+.bwp-lead-dismiss {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--steel, #5B6B7C);
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px;
+}
+.bwp-lead-dismiss:hover { color: var(--ink, #10243E); }
 
 .bwp-lead-form label {
   font-size: 0.72rem;
@@ -250,6 +265,23 @@
   padding: 4px;
 }
 .bwp-lead-skip:hover { color: var(--ink, #10243E); }
+
+/* ---------- Persistent phone footer ---------- */
+.bwp-chat-footer {
+  flex-shrink: 0;
+  padding: 7px 14px;
+  font-size: 0.76rem;
+  text-align: center;
+  color: var(--steel, #5B6B7C);
+  background: var(--paper, #F4F6F8);
+  border-top: 1px solid var(--line, #E1E6EA);
+}
+.bwp-chat-footer a {
+  color: var(--copper, #B8632E);
+  font-weight: 700;
+  text-decoration: none;
+}
+.bwp-chat-footer a:hover { text-decoration: underline; }
 
 /* ---------- Input row ---------- */
 .bwp-chat-input-row {
