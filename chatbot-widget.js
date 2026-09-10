@@ -30,7 +30,7 @@
     <div id="bwp-chat-panel" hidden>
       <div id="bwp-chat-header">
         <span>Blue Wrench Plumbing</span>
-        <button id="bwp-chat-close" aria-label="Close chat">✕</button>
+        <button id="bwp-chat-close" aria-label="Close chat">×</button>
       </div>
       <div id="bwp-chat-messages"></div>
       <div id="bwp-chat-input-row">
@@ -98,7 +98,7 @@
     const formEl = document.createElement("div");
     formEl.className = "bwp-lead-form";
     formEl.innerHTML = `
-      <button class="bwp-form-dismiss" aria-label="Dismiss">✕</button>
+      <button class="bwp-form-dismiss" aria-label="Dismiss">×</button>
       <p>Mind sharing a few details so we can follow up if needed?</p>
       <input type="text" class="bwp-form-name" placeholder="Name" />
       <input type="tel" class="bwp-form-phone" placeholder="Phone" />
