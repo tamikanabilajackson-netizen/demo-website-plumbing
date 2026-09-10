@@ -7,6 +7,7 @@
 <meta name="description" content="24/7 emergency plumbing, drain cleaning, water heater installs, and pipe repair. Licensed, insured, and locally trusted.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="chatbot-widget.css">
 <style>
   :root {
     --ink: #10243E;
@@ -724,13 +725,13 @@
   ===========================================================
   CHATBOT WIDGET
   ===========================================================
-  AI-powered chat widget, backed by /api/chat.js (Vercel
-  serverless function calling the Anthropic API). Builds and
-  injects its own markup — nothing else on this page needs to
-  change to edit the bot's behavior.
+  Rule-based keyword chatbot. Content/keywords live in
+  chatbot-config.js; behavior lives in chatbot-widget.js. Both
+  build and inject their own markup — nothing else on this page
+  needs to change to edit the bot's copy or keyword map.
   ===========================================================
 -->
-<link rel="stylesheet" href="chatbot-widget.css">
+<script src="chatbot-config.js"></script>
 <script src="chatbot-widget.js"></script>
 
 <script>
